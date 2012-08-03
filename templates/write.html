@@ -1,0 +1,224 @@
+{% extends 'layout.html' %}
+
+{% block page_header %}
+    <div class="page-header">
+        <h1>Write <small> 작문</small>
+        </h1>
+    </div>
+{% endblock %}
+
+{% block include_css %}
+<link rel="stylesheet" href="codemirror/lib/codemirror.css"/>
+<link rel="stylesheet" href="codemirror/theme/ambiance.css"/>
+<link rel="stylesheet" href="codemirror/theme/eclipse.css"/>
+<link rel="stylesheet" href="codemirror//lib/util/simple-hint.css">
+<style type="text/css">
+    .CodeMirror {padding: 3px; border: 2px solid #eeeeee; font-size: 15px; border-radius: 6px; 
+    background-color: #eeeeee; line-height: 18px; width: 660px;}
+</style>
+{% endblock %}
+
+{% block include_script %}
+<script type="text/javascript" src="js/bootstrap-popover.js"></script>
+<script type="text/javascript" src="codemirror/lib/codemirror.js"></script>
+<script src="codemirror/lib/util/simple-hint.js"></script>
+<script type="text/javascript" src="js/enser.js"></script>
+{% endblock %}
+
+{% block contents %}
+<div>
+    <div class="span8">
+        <textarea id="editor" name="content"></textarea>
+    </div>
+</div>
+<div class="span9" style="margin-top: 15px">
+<!--
+    <a class="btn btn-primary btn-large pull-right" style="margin-right: 30px" href="#" onclick="checkWrite()">문법 검사</a>
+-->
+</div>
+<div style="margin-top: 50px">
+    <div class="page-header">
+        <h1>Grammar Match <small>관련 문법</small></h1>
+    </div>
+    <div id="write-check-div" style="margin-left: 10px">
+    </div>
+</div>
+<div id="dic-result-div" style="margin-top: 50px">
+</div>
+{% endblock %}
+
+{% block script %}
+CodeMirror.commands.autocomplete = function(cm) {
+    CodeMirror.simpleHint(cm, CodeMirror.enserHint);
+}
+var codeMirror;
+var checkTimeout;
+var prevRequestTime = 0;
+var requestMap = new Map();
+
+$(document).ready(function() {
+    codeMirror = CodeMirror.fromTextArea(document.getElementById('editor'), { 
+        mode: {name: 'enser'},
+        theme: "eclipse",
+        matchBrackets: true,
+        keyMap: "enser",
+        extraKeys: {"Ctrl-Space": "autocomplete"},
+        lineWrapping: true,
+        onChange: function(cm) {
+            if (cm) {
+                timedRequest(cm);
+            }
+        },
+        onCursorActivity: function(cm) {
+            if (cm) {
+                var text = getSentence(cm);
+                if (requestMap.containsKey(text)) {
+                    handleCheckResult(requestMap.get(text));
+                } else {
+                    timedRequest(cm);
+                }
+            }
+        }
+    });
+    codeMirror.focus();
+});
+
+function timedRequest(cm) {
+    if (typeof checkTimeout != 'undefined') {
+        clearTimeout(checkTimeout);
+    }
+    checkTimeout = setTimeout(function() {
+        requestCheck(cm, false);
+    }, 1000);
+}
+
+function getSentence(cm) {
+    var cur = cm.getCursor();
+    var lineCount = cm.lineCount();
+    var block = 0; 
+    var from, to;
+    // before
+    before:
+    for(var l = cur.line; l >= 0; --l) {
+        var ch;
+        if (l == cur.line) {
+            ch = cur.ch;
+        } else {
+            ch = cm.getLine(l).length;
+        }
+        for(var c = ch; c >= 0; --c) {
+            var pos = {line: l, ch: c};
+            var token = cm.getTokenAt(pos);
+            if(token.className == "tag") {
+                if(token.string == "[") {
+                    if (block == 0) {
+                        from = pos;
+                        break before;
+                    } else {
+                        block += 1;
+                    }
+                } else if (token.string == "]") {
+                    block -= 1;
+                }
+            }
+        }
+    }
+    // after
+    block = 0;
+    after:
+    for(var l = cur.line; l < lineCount; ++l) {
+        var ch = cm.getLine(l).length;
+        if (l == cur.line) {
+            st = cur.ch;
+            lineEnd = {line: l, ch: cm.getLine(l).length};
+        } else {
+            st = 0;
+        }
+        for(var c = st; c <= ch; ++c) {
+            var pos = {line: l, ch: c};
+            var token = cm.getTokenAt(pos);
+            if (token.className == "tag") {
+                if (token.string == "]") {
+                    if (block == 0) {
+                        to = {line: pos.line, ch: pos.ch - 1};
+                        break after;
+                    } else {
+                        block -= 1;
+                    }
+                } else if (token.string == "[") {
+                    block += 1;
+                }
+            }
+        }
+    }
+    if (typeof from != 'undefined') {
+        if (typeof to == 'undefined') {
+            to = lineEnd
+        }
+        return cm.getRange(from, to);
+    }
+}
+
+function handleCheckResult(xml) {
+    $('a.help').each(function() {
+        $(this).popover('hide');
+    });
+    $('#write-check-div').empty();
+    var results = $(xml).find('results');
+    if (results.length > 0) {
+        appendFn = function(self) {
+            var id = $(self).attr('id');
+            var gid = $(self).attr('gid');
+            var name = $(self).attr('name');
+            var cls = $(self).attr('class');
+            var desc = $(self).text();
+            $('#write-check-div').append($('<a style="margin-right: 13px">' + name + '</a>').attr({id: id, title: name, "data-content": desc, href: "/grammar/view/" + gid,
+            class: "help btn " + cls}));
+            $('#' + id).popover();
+        }
+        results.find('grammar').each(function() {
+            appendFn(this);
+        });
+    }
+    checkTimeout = null;
+}
+
+function requestCheck(cm) {
+    var text = getSentence(cm);
+    if (typeof text == 'undefined') return;
+
+    console.debug('Request: ' + text);
+    var curTime = new Date().getTime() * 0.001;
+    if (curTime - prevRequestTime > 1) {
+        prevRequestTime = curTime;
+        requestAjax('/write/check/"' + text +'"', {},
+            function(xml) {
+                requestMap.put(text, xml);
+                handleCheckResult(xml);
+            },
+            function() {
+            });
+    }
+}
+
+CodeMirror.keyMap["enser"] = {
+    "[": handleOpenBracket,
+    fallthrough: ["default"],
+    nofallthrough: false
+}
+
+function handleOpenBracket(cm) {
+    var start = cm.getCursor(true);
+    var end = {line: start.line, ch: start.ch +1};
+    var line = cm.getLine(start.line);
+    if (line.indexOf("[") >= 0) {
+        cm.replaceSelection("");
+        CodeMirror.commands.newlineAndIndent(cm);
+        start = cm.getCursor(true);
+        end = {line: start.line, ch: start.ch +1};
+    }
+    cm.replaceRange("[", start);
+}
+
+
+{% endblock %}

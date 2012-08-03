@@ -1,0 +1,152 @@
+{% extends 'layout.html' %}
+
+{% block page_header %}
+    <div class="page-header">
+        {% if edit %}
+            <h1>Grammar Edit<small> 문법 편집</small></h1>
+        {% else %}
+            <h1>Grammar Register<small> 문법 등록</small></h1>
+        {% endif %}
+    </div>
+{% endblock %}
+
+{% block include_css %}
+<link rel="stylesheet" href="/js/redactor/css/redactor.css"/>
+{% endblock %}
+
+{% block include_script %}
+<script type="text/javascript" src="/js/redactor/redactor.js"></script>
+{% endblock %}
+
+
+{% block contents %}
+<div class="container">
+    <form class="form-horizontal" method="POST" action="{% if edit %}/grammar/edit/{{gr['nid']}}/submit{% else %}/grammar/register/submit{% endif %}" onSubmit="return checkSubmit()">
+        <fieldset>
+            <div class="control-group">
+                <label class="control-label form_label" for="id">문법 이름</label>
+                <div class="controls">
+                    <input id="grammar-name" type="text" name="name" class="input-xlarge" style="width: 380px; height: 22px; font-size: 16px" placeholder="이 문법의 이름을 기입하세요." {%if edit
+                    %}value="{{gr['name']}}"{% endif%}/>
+                    <div id="grammar-name-msg"></div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label form_label" for="desc-editor">문법 설명</label>
+                <div class="controls">
+                    <div class="control-group">
+                        <div style="width: 540px">
+                            <textarea id="desc-editor" name="desc" style="height: 200px;">{% if edit %}{{gr['desc']}}{% endif%}</textarea>
+                        </div>
+                    </div>
+                    <span class="help-block" style="margin-top: -10px">문법의 내용을 간단 명료하게 기술해 주세요.</span>
+                    <div id="desc-editor-msg"></div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label form_label" for="good-query">맞는 문장</label>
+                <div class="controls">
+                    <input id="good-query" type="text" name="good-query" class="input-xlarge good-query" style="width: 430px; height: 22px; font-size: 16px" placeholder="이 문법에 맞는 문장을 찾는 검색문을 기입하세요."/>
+                    <button class="btn" onclick="addInputAfter('good-query'); return false">+</button>
+                    <button class="btn" onclick="removeInputAfter('good-query'); return false">-</button>
+                    <div id="good-query-msg"></div>
+                    <div id="good-query-next"></div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label form_label" for="bad-query">틀린 문장</label>
+                <div class="controls">
+                    <input id="error-query" type="text" name="error-query" class="input-large error-query" style="width: 430px; height: 22px; font-size: 16px" placeholder="이 문법에 틀리는 문장을 찾는 검색문을 기입하세요. (선택)"/>
+                    <button class="btn" onclick="addInputAfter('error-query'); return false">+</button>
+                    <button class="btn" onclick="removeInputAfter('error-query'); return false">-</button>
+                    <div id="error-query-msg"></div>
+                    <div id="error-query-next"></div>
+                </div>
+            </div>
+            <div class="control-group">
+                <div class="controls">
+                    <button id="submit-btn" type="submit" class="btn btn-large btn-primary" style="margin-top: 10px">{% if edit %}저장하기{% else %}등록하기{% endif %}</button>
+                </div>
+            </div>
+        </fieldset>
+    </form>
+</div>
+{% endblock %}
+
+{% block script %}
+$(document).ready(function() {
+    $('#desc-editor').redactor({
+        lang: 'ko'
+    });
+
+{% if edit %}
+    {% for gq in gr['good_queries'] %}
+        {% if loop.index == 1 %}
+        $('#good-query').val("{{gq}}");
+        {% else %}
+        addInputAfter('good-query', "{{gq}}");
+        {% endif %}
+    {% endfor %}
+    {% for eq in gr['error_queries'] %}
+        {% if loop.index == 1 %}
+        $('#error-query').val("{{eq}}");
+        {% else %}
+        addInputAfter('error-query', "{{eq}}");
+        {% endif %}
+    {% endfor %}
+{% endif %}
+});
+
+function checkSubmit() {
+    $('#grammar-name-msg').empty();
+    $('#desc-editor-msg').empty();
+    $('#good-query-msg').empty();
+    $('#error-query-msg').empty();
+
+    var name = $('#grammar-name').val();
+    var desc = $('#desc-editor').val();
+    var good_query = $('#good-query').val();
+    var error_query = $('#error-query').val();
+
+    var eid, emsg;
+    if (name.length == 0) {
+        eid = "grammar-name";
+        emsg = "문법 이름을 적어주세요.";
+    } else if (desc.length == 0) {
+        eid = "desc-editor";
+        emsg = "문법 설명을 적어주세요.";
+    } else if (good_query.length == 0) {
+        eid = "good-query";
+        emsg = "문법에 맞는 검색문을 적어주세요.";
+    }
+    if (eid) {
+        $('#' + eid).focus();
+        $('#' + eid + '-msg').append('<div class="alert alert-danger span6" style="margin-left: 0px; margin-top: 10px">' + emsg + '</div>');
+        return false;
+    }
+    return true;
+}
+
+function addInputAfter(type, msg) {
+    msg = typeof msg == 'undefined' ? '' : msg;
+    var idx = $('input.' + type).length;
+    var name = type + idx;
+    var target = type + '-next';
+    $('<div style="margin-top: 7px;"><input id="' + name + '" value="'+ msg +'" type="text" name="' + name + '" class="input-xlarge ' + type + '" placeholder="추가 검색문을 기입하세요." style="width: 430px; height: 22px; font-size: 16px"/><div id="' + name +
+    '-next"').fadeIn('slow').appendTo('#' + target);
+    $('<div id="' + name + '-next"').appendTo('#' + target);
+}
+
+function removeInputAfter(type) {
+    var idx = $('input.' + type).length;
+    if (idx == 1) {
+        $('#' + type).val('');
+        return;
+    }
+    var name = type + idx;
+    var target = type + '-next';
+    $('input.' + type + ':last').remove();
+}
+
+{% endblock %}
+

@@ -1,0 +1,558 @@
+{% macro nav_item(path, name) %}
+<li class="{% if path == cur_path %}active{% endif %}"><a href="{{path}}">{{name}}</a></li>
+{% endmacro %}
+{% macro nav_dropdown_item(root, path, name, disabled = False) %}
+<li class="{%if cur_path.endswith(path)%}active{%endif%}"><a href="{{root}}/{{path}}" {%if disabled %}class="disabled"{%endif%}>{{name}}</a></li>
+{% endmacro %}
+
+<!DOCTYPE html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8"/>
+        <title>Enser - 영어를 위한 스마트한 답변</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <link rel="stylesheet" href="/css/bootstrap.css"/>
+        {% block include_css %}
+        {% endblock %}
+        <link rel="stylesheet" href="/css/custom.css"/>
+    </head>
+    <body>
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <a class="brand" href="/">Enser</a>
+                    <ul class="nav">
+                        {{ nav_item('/home', '홈') }}
+                        {% if auth_id %}
+                        <li class="dropdown {% if cur_path.startswith('/corpus')%}active{% endif %}" id="menu-corpus">
+                            <a class="dropdown-toggle" data-toggle="dropdown" href="#menu-corpus">말뭉치 <b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                {{ nav_dropdown_item('/corpus', 'search', '말문치 검색') }}
+                                {{ nav_dropdown_item('/corpus', 'register', '말뭉치 등록', True) }}
+                            </ul>
+                        </li>
+                        <li class="dropdown {%if cur_path.startswith('/grammar')%}active{%endif%}" id="menu-grammar">
+                            <a class="dropdown-toggle" data-toggle="dropdown" href="#menu-grammar">문법 <b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                {{ nav_dropdown_item('/grammar', 'view', '문법 보기') }}
+                                {{ nav_dropdown_item('/grammar', 'register', '문법 등록') }}
+                            </ul>
+                        </li>
+                        {{ nav_item('/write', '작문') }}
+                        {% endif %}
+                        {{ nav_item('/todo', '할일') }}
+                    </ul>
+                    <!--
+                    <form class="navbar-form pull-right">
+                        <input type="text" class="span2" placeholder="ID를 입력해주세요."/>
+                        <input type="password" class="span2" placeholder="암호를 입력해주세요."/>
+                        <input type="checkbox">ID기억</input>
+                        <button class="btn btn-success" type="submit" style="width: 80px; margin-right: 10px;">로그인</button>
+                        <button class="btn btn-warning" style="width: 80px" id="join" rel="popover" title="회원 가입" data-content="회원으로 가입하시면 검색 결과를 저장하여 편리하게 사용하실 수 있습니다.">가입</button>
+                    </form>
+                    -->
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid" style="margin-top: 40px">
+            <div class="row">
+                <div class="span9">
+                    {% block page_header %}
+                    {% endblock %}
+                    {% block contents %}
+                    <p>내용이 들어갑니다.</p>
+                    {% endblock %}
+                    <div id="corpus-result-div">
+                    </div>
+                </div>
+                <div class="span3">
+                    {% if not auth_id %}
+                    <form class="well" name="login" action="" onSubmit="return false">
+                        <h2>로그인</h2>
+                        <br/>
+                        <label class="pull-left">ID</label>
+                        <label class="checkbox pull-right">
+                            <input type="checkbox">기억하기</input>
+                        </label>
+                        <input id="login-id" type="text" class="span2" placeholder="ID를 입력해주세요."/>
+                        <div id="login-id-err"></div>
+                        <label>암호</label>
+                        <input id="login-passwd" type="password" class="span2" placeholder="암호를 입력해주세요."/>
+                        <div id="login-passwd-err"></div>
+                        <div style="margin-top: 10px">
+                            <div id="join-modal" class="modal hide fade">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <h3>회원 가입</h3>
+                                </div>
+                                <div class="modal-body">
+                                    <p>가입을 위해 아래의 정보를 기입해 주세요.</p>
+                                    <form class="form-horizontal" action="" onSubmit="return false" id="join-form">
+                                        <fieldset>
+                                            <div class="control-group">
+                                                <label class="control-label" for="join-id">ID</label>
+                                                <input id="join-id" type="text" class="span3 pull-left" placeholder="ID로 사용할 Email 주소"/>
+                                                <span class="label label-inverse">ID체크</span>
+                                                <div id="join-id-msg"/>
+                                            </div>
+                                            <div class="control-group">
+                                                <label class="control-label" for="join-passwd">암호</label>
+                                                <input id="join-passwd" type="password" class="span3" placeholder="암호를 입력해 주세요."/>
+                                                <input id="join-passwd2" type="password" class="span3" placeholder="확인용 암호를 입력해 주세요."/>
+                                                <div id="join-passwd-msg"/>
+                                            </div>
+                                        </fieldset>
+                                    </form>
+                                    <h4>약관</h4>
+                                    <hr/>
+                                    <div class="modal-fotter pull-right">
+                                        <a class="btn" data-dismiss="modal">취소</a>
+                                        <button id="join-ok" class="btn btn-primary active" onClick="requestJoin()">가입하기</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="result-modal" class="modal hide fade">
+                                <div class="modal-header">
+                                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                                    <div id="result-modal-head">
+                                    </div>
+                                </div>
+                                <div id="result-modal-msg" class="span6">
+                                </div>
+                                <div style="text-align: center">
+                                    <button class="btn btn-primary" data-dismiss="modal">확인</button>
+                                </div>
+                            </div>
+                            <button class="btn btn-success" type="submit" style="width: 80px" onclick="requestLogin()">로그인</button>
+                            <button data-toggle="modal" onclick="showJoinModal();" class="btn btn-warning pull-right" style="width: 80px" id="join" rel="popover" title="회원 가입" data-content="회원으로 가입하시면 검색 결과를 저장하여 편리하게 사용하실 수 있습니다.">가입</button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="alert alert-success">
+                        <p><strong>{{auth_id}}</strong> 님<br/>환영합니다.
+                            <button class="btn btn-mini pull-right" data-dismiss="modal" onClick="requestLogout()">로그아웃</button>
+                        </p>
+                        <hr/>
+                        {% if recent_queries %}
+                            <h4>최근 말뭉치 검색</h4>
+                            <ul class="nav nav-list">
+                                {% for query in recent_queries %}
+                                <li>
+                                    <a href='javascript:void(0);' class="query">{{query}}</a>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            <hr/>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr/>
+            <footer>
+                <p>&copy; nimoniq 2012</p>
+            </footer>
+        </div>
+
+        <script type="text/javascript" src="/js/jquery-1.7.2.min.js"></script>
+        <script type="text/javascript" src="/js/bootstrap.js"></script>
+        <script type="text/javascript" src="/js/bootstrap-modal.js"></script>
+        <script type="text/javascript" src="/js/bootstrap-dropdown.js"></script>
+        {% block include_script %}
+        {% endblock %}
+        <script type="text/javascript">
+
+function showJoinModal() {
+    $('#join-modal').on('show', function() {
+        setTimeout(function() {
+            $('#join-id').focus();
+        }, 500);
+    });
+    $('#join-modal').modal({});
+    $('#join').blur();
+}
+
+function requestAjax(url, data, successFunc, completeFunc, ctype) {
+    ctype = (typeof(ctype) != 'undefined') ? ctype : 'text/xml';
+    var jqxhr = $.ajax({
+        url: url,
+        type: 'POST',
+        data: data,
+        contentType: ctype,
+        statusCode: {
+            404: function() {
+                alert('요청하신 정보를 찾을 수 없습니다.');
+            },
+            403: function() {
+                alert('요청하신 정보를 접근이 불가합니다.');
+            },
+            401: function() {
+                alert('로그인을 해주세요.');
+            },
+        },
+        error: function(xhr, status) {
+            alert('Error : ' + xhr.status);
+        },
+        success: function(xml) {
+            successFunc(xml);
+        },
+        complete: function() {
+            document.body.style.cursor = 'default';
+            if(completeFunc) {
+                completeFunc();
+            }
+        }
+    });
+}
+
+function insertAtCaret(areaId,text) {
+    var txtarea = document.getElementById(areaId);
+    var scrollPos = txtarea.scrollTop;
+    var strPos = 0;
+    var br = ((txtarea.selectionStart || txtarea.selectionStart == '0') ? 
+        "ff" : (document.selection ? "ie" : false ) );
+    if (br == "ie") { 
+        txtarea.focus();
+        var range = document.selection.createRange();
+        range.moveStart ('character', -txtarea.value.length);
+        strPos = range.text.length;
+    }
+    else if (br == "ff") strPos = txtarea.selectionStart;
+
+    var front = (txtarea.value).substring(0,strPos);  
+    var back = (txtarea.value).substring(strPos,txtarea.value.length); 
+    txtarea.value=front+text+back;
+    strPos = strPos + text.length;
+    if (br == "ie") { 
+        txtarea.focus();
+        var range = document.selection.createRange();
+        range.moveStart ('character', -txtarea.value.length);
+        range.moveStart ('character', strPos);
+        range.moveEnd ('character', 0);
+        range.select();
+    }
+    else if (br == "ff") {
+        txtarea.selectionStart = strPos;
+        txtarea.selectionEnd = strPos;
+        txtarea.focus();
+    }
+    txtarea.scrollTop = scrollPos;
+}
+
+$(document).ready(function() {
+    //$('#join').popover({placement: 'left'});
+    $(".dropdown-toggle").dropdown();
+    $(".disabled").click(function(event) {
+        event.preventDefault();
+    });
+    $('a.query').click(function() {
+        var self = $(this);
+        search(self.contents().text(), 
+            function() {
+                $(self).addClass('loading btn-danger').removeClass('btn-primary');
+                $('a.query').each(function() {
+                });
+            }, 
+            function() {
+                $(self).removeClass('loading btn-danger');
+                $('a.query').each(function() {
+                    $(this).removeAttr('disabled');
+                });
+            });
+    });
+});
+
+function requestLogout() {
+    requestAjax('/logout', function(xml) {
+        var fail = $(xml).find('fail');
+        if (fail.length > 0) {
+            $('#result-modal-head').append('<h3>로그아웃 실패</h3>');
+            $('#result-modal-msg').append('<div class="alert alert-error">' + fail.text() + '</div>');
+        }
+    }, function() {
+        window.location = "{{url_root}}{{cur_path}}";
+    });
+}
+
+function requestLogin() {
+    var id = $('#login-id').val();
+    var passwd = $('#login-passwd').val();
+    var eid, emsg;
+    $('#login-id-err').empty();
+    $('#login-passwd-err').empty();
+    if (id.length == 0) {
+        eid = 'login-id';
+        emsg = 'ID를 입력하세요.';
+    } else if (passwd.length == 0) {
+        eid = 'login-passwd';
+        emsg = '암호를 입력하세요.';
+    }
+    if (eid) {
+        $('#' + eid).focus();
+        $('#' + eid + '-err').append('<div class="alert alert-error">' + emsg + '</div>');
+    } else {
+        requestAjax('/login', {id: id, passwd: passwd},
+            function(xml) {
+                var fail = $(xml).find('fail');
+                if (fail.length > 0) {
+                    $('#result-modal').modal({});
+                    $('#result-modal-head').empty();
+                    $('#result-modal-msg').empty();
+                    $('#result-modal-head').append('<h3>로그인 실패</h3>');
+                    $('#result-modal-msg').append('<div class="alert alert-error">' + fail.text() + '</div>');
+                }
+            }, 
+            function() {
+                window.location = "{{url_root}}{{cur_path}}";
+            }
+        );
+    }
+}
+
+function requestJoin() {
+    $('#join-id-msg').removeClass().empty();
+    $('#join-passwd-msg').removeClass().empty();
+    var id = $('#join-id').val();
+    var passwd = $('#join-passwd').val();
+    var passwd2 = $('#join-passwd2').val();
+    var fid, eid, emsg;
+    if (id.length == 0) {
+        fid = eid = 'join-id';
+        emsg = "ID로 사용할 이메일 주소를 입력해 주세요.";
+    }
+    else if (passwd.length == 0) {
+        fid = eid = "join-passwd";
+        emsg = "암호를 입력해 주세요.";
+    }
+    else if (passwd2.length == 0) {
+        eid = 'join-passwd';
+        fid = 'join-passwd2';
+        emsg = '확인용 암호를 입력해 주세요';
+    }
+    else if (passwd != passwd2) {
+        fid = 'join-passwd2';
+        eid = 'join-passwd';
+        emsg = '두 암호가 일치하지 않습니다.';
+    }
+    if (eid) {
+        setTimeout(function() {
+            $('#' + fid).focus();
+        }, 100);
+        var target = $('#' + eid + '-msg');
+        target.addClass("alert alert-error");
+        target.append("<span>" + emsg + "</span>");
+    } else {
+        var url = "/join";
+        requestAjax(url, {
+            id: id,
+            passwd: passwd
+        }, function(xml) {
+            $('#join-modal').modal('hide');
+            $('#login-id').val(id);
+            var fail = $(xml).find('fail');
+            $('#result-modal').modal({});
+            $('#result-modal-head').empty();
+            $('#result-modal-msg').empty();
+            if (fail.length > 0 ) {
+                $('#result-modal-head').append('<h3>가입 실패</h3>');
+                $('#result-modal-msg').append('<div class="alert alert-error">' + fail.text() + '</div>');
+            } else {
+                $('#result-modal-head').append('<h3>가입 성공</h3>');
+                $('#result-modal-msg').append('<div class="alert alert-success">가입되었습니다. 로그인 후 사용해 주세요.</div>');
+            }
+            console.debug(xml);
+        }, function() {
+            console.debug('done');
+        });
+    }
+}
+
+        </script>
+        <script type="text/javascript">
+function search(_msg, beforeFn, afterFn) {
+    if (typeof beforeFn != 'undefined') {
+        beforeFn($(this));
+    }
+    $('#corpus-result-div').empty();
+    $('#search-btn').addClass('loading btn-danger').removeClass('btn-primary').attr('disabled', 'disabled')
+    document.body.style.cursor = 'wait';
+    var msg = typeof _msg == 'undefined' ? $('#query').val() : _msg;
+    var show_tag = $('#show-tag').is(':checked');
+    var url = '/query?show_tag=' + show_tag + '&msg="' + msg + '"';
+    var jqxhr = requestAjax(url, {}, function(xml) {
+            result_xml = xml;
+            showResultPage(1);
+        }, function() {
+            $('#search-btn').removeClass('loading btn-danger').addClass('btn-primary').removeAttr('disabled');
+            $('html, body').animate({
+                scrollTop: $('#corpus-result-div').offset().top
+                }, 600);
+            if (typeof afterFn != 'undefined') {
+                afterFn($(this));
+            }
+        });
+    return false;
+}
+
+function showResultPage(pageNo) {
+    console.debug('showResultPage ' + pageNo);
+    var sentPerPage = {{sent_per_page}};
+    var pagePerSect = 10;
+
+    $('#corpus-result-div').empty();
+    var sentences = $(result_xml).find('sentences');
+    if (sentences.length > 0) {
+        var totalCnt = Number(sentences.attr('total_cnt'));
+        var matchCnt = Number(sentences.attr('match_cnt'));
+        var pageCnt = Number(sentences.attr('page_cnt'));
+        var elapsed = Number(sentences.attr('elapsed'));
+        if (matchCnt == 0) {
+            $('#corpus-result-div').append('<p style="margin-top: 30px; margin-bototm: 30px; font-size: 17px; text-align: center;">일치하는 결과가 없습니다.</p>');
+        } else {
+        sentences.find('page').each(function(page_idx) {
+            if (page_idx + 1 == pageNo) {
+                var table = '\
+<br/>\
+<div class="page-header">\
+    <h1>Corpus Result <small>말뭉치 검색 결과  ( 전체 ' + totalCnt + '개 중 '+ matchCnt + '개; ' + Math.round(elapsed * 100)/100 + '초 )</small></h1>\
+    </div>\
+    <div style="margin-left: 10px">\
+    <table id="result-table" class="table table-striped">\
+        <thead>\
+            <tr>\
+                <th>#</th>\
+                <th>분류</th>\
+                <th>문장</th>\
+            </tr>\
+        </thead>\
+        <tbody>';
+        $(this).find('sentence').each(function(idx) {
+            var category = $(this).attr('category');
+            var category = category.charAt(0).toUpperCase() + category.slice(1);
+            category = category.replace('_', ' ');
+            var text = $(this).text()
+            var sectIdx = Math.floor(pageNo / pagePerSect);
+            var pn = idx + 1 + (pageNo - 1) * sentPerPage;
+            var tr = '<tr><td>' + pn + '</td><td>' + category + '</td><td>' + text + '</td><td></tr>';
+            table += tr;
+        });
+        table += '\
+        </tbody>\
+    </table>\
+</div>';
+                if (pageCnt > 1) {
+                    table += '<div class="row" style="text-align: center"><div class="pagination"><ul>';
+                    var curSect = Math.ceil(pageNo / pagePerSect);
+                    var maxSect = Math.ceil(pageCnt / pagePerSect);
+                    if (curSect == 1) {
+                        table += '<li class="disabled"><a>&laquo;</a></li>';
+                    } else {
+                        table += '<li><a href="#result-table" onclick="showResultPage(' + ((curSect - 2)* pagePerSect + 1) + ')">&laquo;</a></li>';
+                    }
+                    for (var pn = 1; pn <= pageCnt; ++pn) {
+                        var minPage = (curSect - 1) * pagePerSect;
+                        var maxPage = curSect * pagePerSect;
+                        if (pn > minPage && pn <= maxPage) {
+                            var active = "";
+                            if (pageNo == pn) {
+                                active = "active";
+                            }
+                            table += '<li class="' + active + '"><a href="#result-table" onclick="showResultPage(' + pn +')">' + pn + '</a></li>';
+                        }
+                    }
+                    if (maxSect == curSect) {
+                        table += '<li class="disabled"><a>&raquo;</a></li>';
+                    } else {
+                        table += '<li><a href="#result-table" onclick="showResultPage(' + (curSect * pagePerSect + 1) + ')">&raquo;</a></li>';
+                    }
+                    table += '</ul></div></div>';
+                }
+                $('#corpus-result-div').append(table);
+            }
+        });
+        }
+    }
+}
+
+var getKeys = function(obj){
+   var keys = [];
+   for(var key in obj){
+      keys.push(key);
+   }
+   return keys;
+}
+
+function getMethods(obj) {
+  var result = [];
+  for (var id in obj) {
+    try {
+      if (typeof(obj[id]) == "function") {
+        result.push(id + ": " + obj[id].toString());
+      }
+    } catch (err) {
+      result.push(id + ": inaccessible");
+    }
+  }
+  return result;
+}
+
+Map = function(){
+ this.map = new Object();
+};   
+Map.prototype = {   
+    put : function(key, value){   
+        this.map[key] = value;
+    },   
+    get : function(key){   
+        return this.map[key];
+    },
+    containsKey : function(key){    
+     return key in this.map;
+    },
+    containsValue : function(value){    
+     for(var prop in this.map){
+      if(this.map[prop] == value) return true;
+     }
+     return false;
+    },
+    isEmpty : function(key){    
+     return (this.size() == 0);
+    },
+    clear : function(){   
+     for(var prop in this.map){
+      delete this.map[prop];
+     }
+    },
+    remove : function(key){    
+     delete this.map[key];
+    },
+    keys : function(){   
+        var keys = new Array();   
+        for(var prop in this.map){   
+            keys.push(prop);
+        }   
+        return keys;
+    },
+    values : function(){   
+     var values = new Array();   
+        for(var prop in this.map){   
+         values.push(this.map[prop]);
+        }   
+        return values;
+    },
+    size : function(){
+      var count = 0;
+      for (var prop in this.map) {
+        count++;
+      }
+      return count;
+    }
+};
+        {% block script %}
+        {% endblock %}
+        </script>
+    </body>
+</html>
+

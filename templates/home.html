@@ -1,0 +1,51 @@
+{% extends 'layout.html' %}
+
+{% block include_script %}
+<script type="text/javascript" src="/js/bootstrap-carousel.js"></script>
+{% endblock %}
+
+{% block contents %}
+<!--
+    <div>
+        <div id="grammar_carousel" class="carousel slide">
+            <div class="carousel_inner">
+                <div class="item active">
+                    <h1>Head 1</h1>
+                    <h1>Head 1</h1>
+                    <h1>Head 1</h1>
+                </div>
+                <div class="item">
+                    <h1>Head 2</h1>
+                    <h1>Head 2</h1>
+                    <h1>Head 2</h1>
+                </div>
+                <div class="item">
+                    <h1>Head 3</h1>
+                    <h1>Head 3</h1>
+                    <h1>Head 3</h1>
+                </div>
+            </div>
+            <a class="carousel-control left" href="#grammar_carousel" data-slide="prev">&lsaquo;</a>
+            <a class="carousel-control right" href="#grammar_carousel" data-slide="next">&rsaquo;</a>
+        </div>
+    </div>
+    -->
+<div class="hero-unit">
+    <h1 style="pull-left">Enser <small>[엔서]</small></h1>
+    <p>자기 주도적 영어 학습과 사용을 위한 스마트한 답변</p>
+    {% if auth_id %}
+        <a class="btn btn-primary btn-large" href="/corpus/search">시작하기</a>
+    {% else %}
+        <p style="margin-top: 19px; margin-bottom: 0px;">처음 오신 분은 <a href="#" onclick="showJoinModal()">가입</a>하세요.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block script %}
+    $(document).ready(function() {
+        $('.carousel').carousel({
+            interval: 6000
+        });
+    });
+{% endblock %}
+

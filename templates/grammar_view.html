@@ -1,0 +1,113 @@
+{% extends 'layout.html' %}
+
+{% macro put_grammar(g) %}
+    <div class="well" style="margin-bottom: 0px">
+        <div class="pull-right" style="margin-top:9px; text-align: right;">
+            <span>by <a>{{g['email']}}</a></span>
+            {% if auth_id == g['email'] %}
+            <br/>
+            <a href="/grammar/edit/{{g['nid']}}"><i class="grammar icon-pencil"></i></a>
+            <a href="javascript:void(0)" onclick="deleteGrammar({{g['nid']}})"><i class="grammar icon-trash"></i></a>
+            {% endif %}
+        </div>
+        <div class="row">
+            <div class="span1 columns" style="margin-top: 10px">
+                <p class="pull-right"><strong>설명</strong></p>
+            </div>
+            <div class="span5 columns" style="margin-top: 10px">
+                <div>{{g['desc']}}</div>
+            </div>
+        </div>
+        <div class="row">
+            <div class="span1 columns" style="margin-top: 9px">
+                <p class="pull-right"><strong>맞는 검색문</strong></p>
+            </div>
+            <div class="span5 columns" style="margin-top: 7px">
+            {% for gq in g['good_queries'] %}
+                <a class="query" href="javascript:void(0);"><strong>{{gq}} </strong></a>
+                <br/>
+            {% endfor %}
+            </div>
+        </div>
+        {% if g['error_queries'] %}
+        <div class="row">
+            <div class="span1 columns" style="margin-top: 9px">
+                <p class="pull-right"><strong>오류 검색문</strong></p>
+            </div>
+            <div class="span5 columns" style="margin-top: 7px">
+            {% for eq in g['error_queries'] %}
+                <a class="query" href="javascript:void(0);"><strong>{{eq}} </strong></a>
+                <br/>
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+{% endmacro %}
+
+
+{% block page_header %}
+    <div class="page-header">
+        <h1>Grammar View<small> 문법 보기</small></h1>
+    </div>
+{% endblock %}
+
+{% block include_script %}
+<script type="text/javascript" src="/js/bootstrap-collapse.js"></script>
+{% endblock %}
+
+{% block contents %}
+<div style="margin-left: 10px">
+    <div class="accordion" id="grammar-accordion">
+    {% if grammar %}
+        <h3 style="margin-left: 0px; margin-bottom: 10px">{{grammar['name']}}</h3>
+        {{ put_grammar(grammar) }}
+    {% else %}
+        <h2>Recent <small>최신 문법</small></h2>
+        {% for g in grammars %}
+            <div class="accordion-group" id="grammar-{{g['nid']}}-div">
+                <div class="accordion-heading">
+                    <a class="accordion-toggle" data-toggle="collapse" data-parent="#grammar-accordion" href="#grammar-{{g['nid']}}-contents"><h4>#{{g['nid']}} : {{g['name']}}</h4></a>            
+                </div>
+                <div id="grammar-{{g['nid']}}-contents" class="accordion-body collapse">
+                {{ put_grammar(g) }}
+                </div>
+            </div>
+        {% endfor %}
+    {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+$('i.grammar').hover(function() {
+    $(this).addClass('icon-white grammar-icon-hover');
+}, function() {
+    $(this).removeClass('icon-white grammar-icon-hover');
+});
+$(document).ready(function() {
+    {% if grammars %}
+    /*
+    setTimeout(function() {
+        $('.accordion-body').filter(':first').collapse('toggle');
+    }, 500);
+    */
+    {% endif %}
+});
+
+function deleteGrammar(gid) {
+    if (confirm("이 문법을 삭제하시겠습니까?")) {
+        requestAjax('/grammar/delete/' + gid, {},
+            function(xml) {
+                if($(xml).find('ok').length > 0) {
+                    $('#grammar-'+ gid +'-div').hide('slow', function() {$(this).remove();});
+                }
+            },
+            function() {
+            });
+    }
+}
+
+{% endblock %}
+
+

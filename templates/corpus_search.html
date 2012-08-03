@@ -1,0 +1,182 @@
+{% extends 'layout.html' %}
+
+{% block page_header %}
+    <div class="page-header">
+        <h1>Corpus Search <small> 말뭉치 검색</small></h1>
+    </div>
+{% endblock %}
+
+{% block include_script %}
+<script type="text/javascript" src="/js/bootstrap-popover.js"></script>
+<script type="text/javascript" src="/js/bootstrap-collapse.js"></script>
+{% endblock %}
+
+{% block contents %}
+<div>
+    <form class="form-horizontal" onSubmit="return false;">
+        <fieldset>
+            <div class="control-group">
+                <label class="control-label" for="query" style="font-size: 20px; padding-top: 10px;">검색문</label>
+                <div class="controls">
+                    <input type="text" class="input-xlarge" style="width: 400px; height: 30px; font-size: 20px" id="query"/>
+                    <button id="search-btn" class="btn btn-large btn-primary" style="margin-top: -1px; margin-left: 7px; width: 80px" onclick="return search();">검색</button>
+                </div>
+            </div>
+            <div class="accordion" id="help-accordion" style="width: 700px">
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <a class="accordion-toggle match-title" data-toggle="collapse" data-parent="#help-accordion" href="#match-help">
+                            매칭 규칙
+                        </a>
+                    </div>
+                    <div id="match-help" class="accordion-body collapse">
+                        <div class="alert match-help">
+                            <dl>
+                                <dt>- 임의 철자 매칭</dt>
+                                <dd>예) appl* -> apple, application 등이 매칭</dd>
+                                <dd>예) *ly -> fastly, slowly 등이 매칭</dd>
+                                <dt>- 임의 단어 매칭</dt>
+                                <dd>예) as * as -> as soon as, as long as 등이 매칭</dd>
+                                <dd>예) as ** as -> as many times as, as a deep thinker as 등이 매칭</dd>
+                                <dt>- 동사 시제 매칭</dt>
+                                <dd>예) give@ -> give, gave, given 모두 검사</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <a class="accordion-toggle list-title" data-toggle="collapse" data-parent="#help-accordion" href="#list-help">
+                            리스트 규칙
+                        </a>
+                    </div>
+                    <div id="list-help" class="accordion-body collapse">
+                        <div class="alert list-help">
+                            <dl>
+                                <dt>- 리스트의 사용
+                                <dd>'[ 단어1, 단어2, 단어3, .. ]'의 형태로 같은 위치에 하나 이상의 단어를 후보로 제안</dd>
+                                <dd>예) [ apple, orange, banana ] is delicious -> 'apple is delicious', 'orange is delicious', 'banana is delicious' 모두 검색</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <a class="accordion-toggle pos-title" data-toggle="collapse" data-parent="#help-accordion" href="#pos-help">
+                            품사 규칙
+                        </a>
+                    </div>
+                    <div id="pos-help" class="accordion-body collapse">
+                        <div class="alert pos-help">
+                            <dl>
+                                <dt>- 품사 지정 ( '/품사' 혹은 '단어/품사' 형태로 사용 )</dt> 
+                                <dd>'/품사' 혹은 '단어/품사' 형태로 사용합니다.</dd>
+                                <dd>예) /nn -> 모든 명사가 매치</dd>
+                                <dd>예) ad*/vb -> advance, adhere 등의 동사가 매치</dd>
+                            </dl>
+                            <table id="pos-table" class="table table-bordered table-condensed" style="margin-left: 10px; margin-bottom: 3px">
+                                <tr>
+                                    <td>명사 <a class="pos">/nn</a class="pos"></td>
+                                    <td>대명사 <a class="pos">/pn</a class="pos"></td>
+                                    <td>고유명사 <a class="pos">/np</a class="pos"></td>
+                                    <td>형용사  <a class="pos">/jj</a class="pos"></td>
+                                    <td>전치사  <a class="pos">/in</a class="pos"></td>
+                                    <td>부사  <a class="pos">/rb</a class="pos"></td>
+                                </tr>
+                                <tr>
+                                    <td>동사일반 <a class="pos">/vb</a class="pos"></td>
+                                    <td>동사진행형 <a class="pos">/vbg</a class="pos"></td>
+                                    <td>과거분사 <a class="pos">/vbn</a class="pos"></td>
+                                    <td>3인칭동사 <a class="pos">/vbz</a class="pos"></td>
+                                    <td>법조동사 <a class="pos">/md</a class="pos"></td>
+                                    <td>be 동사 <a class="pos">/be</a class="pos"></td>
+                                </tr>
+                                <tr>
+                                    <td>be 진행형 <a class="pos">/beg</a class="pos"></td>
+                                    <td>관사 <a class="pos">/at</a class="pos"></td>
+                                    <td>관계 한정 <a class="pos">/wdt</a class="pos"></td>
+                                    <td>관계 부사 <a class="pos">/wrb</a class="pos"></td>
+                                    <td>관계 목적 <a class="pos">/wpo</a class="pos"></td>
+                                    <td>비교 부사 <a class="pos">/rbr</a class="pos"></td>
+                                </tr>
+                                <tr>
+                                    <td>수식사 <a class="pos">/ql</a class="pos"></td>
+                                    <td>접속사 <a class="pos">/cc</a class="pos"></td>
+                                    <td>종속접속사 <a class="pos">/cs</a class="pos"></td>
+                                    <td></td>
+                                    <td></td>
+                                    <td></td>
+                                </tr>
+                            </table>
+                            <!-- <p class="pull-right">참조 <a href="http://www.comp.leeds.ac.uk/ccalas/tagsets/brown.html">Brown Corpus Tag</a></p>-->
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-group">
+                    <div class="accordion-heading">
+                        <a class="accordion-toggle sense-title" data-toggle="collapse" data-parent="#help-accordion" href="#sense-help">
+                            의미 규칙
+                        </a>
+                    </div>
+                    <div id="sense-help" class="accordion-body collapse">
+                        <div class="alert sense-help">
+                            <dl>
+                                <dt>- 의미 지정</dt>
+                                <dd> '$의미이름' 형태로 사용합니다.</dd>
+                                <dd>$place -> 장소를 나타내는 모든 단어가 매치</dd>
+                                <dd>$time -> 시간, 때를 나타내는 모든 단어가 매치</dd>
+                                <dd>$people_sbj -> 주격 인칭 대명사</dd>
+                                <dd>$people_obj -> 목적격 인칭 대명사</dd>
+                            </dl>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="control-group">
+                <label class="control-label" for="query" style="font-size: 20px; ">대상</label>
+                <div class="controls">
+                    <label for="corpus-sel" style="display: inline; margin-right: 10px">말뭉치</label>
+                    <select id="corpus-sel" style="width: 100px; margin-right: 20px">
+                        <option>Brown</option>
+                        <option>Cess</option>
+                    </select>
+                    <label for="corpus-sel" style="display: inline; margin-right: 10px">분류</label>
+                    <select id="corpus-sel" style="width: 100px; margin-right: 20px">
+                        <option>All</option>
+                        <option>News</option>
+                        <option>Humor</option>
+                    </select>
+                    <input type="checkbox" id="show-tag"> 품사 포함</input>
+                </div>
+            </div>
+            <!--
+            <div class="control-group">
+                <label class="control-label" for="generality-level" style="font-size: 20px" title="유사도" data-content="유사도가 높으면 정확하게 일치하지 않아도 뜻이 비슷한 문장까지 찾아줍니다."
+                id="generality-label">유사도</label>
+                <div class="controls">
+                    <button class="btn btn-small pull-left">정확</button>
+                    <div class="progress pull-left progress-warning" style="width: 150px; margin: 4px">
+                        <div class="bar" id="generality-level" style="width: 0%"></div>
+                    </div>
+                    <button class="btn btn-small">유사</button>
+                </div>
+            </div>
+            -->
+        </fieldset>
+    </form>
+    <div id="search-result-div">
+    </div>
+</div>
+{% endblock %}
+
+{% block script %}
+$(document).ready(function() {
+    $('#query').focus();
+    $('.pos').click(function() {
+        insertAtCaret('query', $(this).text());
+    });
+});
+
+{% endblock %}
+
+
