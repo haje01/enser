@@ -105,6 +105,8 @@ def init_corpus():
     print 'init corpus.. ', 
     global categories, category_sentences
     categories = brown.categories()
+    half_cat = int(len(categories) * 0.5)
+    categories = categories[:half_cat]
     for category in categories:
         sents = brown.tagged_sents(categories = category)
         category_sentences[category] = sents
@@ -551,7 +553,7 @@ class Application(object):
             grammars = []
             last_nid = self.db.get('grammar_last_nid')
             if last_nid:
-                gid = int(last_nid)
+                gid = int(self.db.get('grammar_last_nid'))
                 while gid >= 0:
                     grammar = self._get_grammar(gid)
                     if grammar:
@@ -615,7 +617,7 @@ class Application(object):
         dic_req = urllib2.Request(DIC_REQ_URL %
         (urllib.quote(msg.encode('utf-8'))))
         print dic_req
-        dic_req.add_header("User-agent", "Mozilla/5.0")
+        dic_req.add_header("User-ageng", "Mozilla/5.0")
         dic_res = urllib2.urlopen(dic_req)
         dic_data = dic_res.read()
         dic = BeautifulSoup(dic_data).div
@@ -727,21 +729,13 @@ def init_connection(args):
         args.result_port + idx))
     print "done"
 
-def start(args):
+def init(args):
     #init_logger(args)
     init_corpus()
     init_connection(args)
     init_workers(args)
-    from werkzeug.serving import run_simple
-    print "Start server with ", args
-    if USE_GEVENT:
-        WSGIServer((args.server_ip, args.server_port),
-        create_app(args)).serve_forever()
-    else:
-        run_simple(args.server_ip, args.server_port, create_app(args), use_debugger=True,
-        use_reloader=False, extra_files=())
 
-if __name__ == '__main__':
+def make_args(args = None):
     parser = argparse.ArgumentParser(description = 'Enser server')
     subparsers = parser.add_subparsers()
 
@@ -763,6 +757,23 @@ if __name__ == '__main__':
     par_start.add_argument('--redis_port', type=int, default=6379,
     help='Redis host port (default: 6379)')
     par_start.set_defaults(func = start)
+    return parser.parse_args(args)
 
-    args = parser.parse_args()
+def start(args):
+    init(args)
+    from werkzeug.serving import run_simple
+    print "Start server with ", args
+    if USE_GEVENT:
+        WSGIServer((args.server_ip, args.server_port),
+        create_app(args)).serve_forever()
+    else:
+        run_simple(args.server_ip, args.server_port, create_app(args), use_debugger=True,
+        use_reloader=False, extra_files=())
+
+if __name__ == '__main__':
+    args = make_args()
     args.func(args)
+else:
+    args = make_args(['start',])
+    init(args)
+    app = create_app(args)

@@ -172,7 +172,7 @@ function handleCheckResult(xml) {
             var name = $(self).attr('name');
             var cls = $(self).attr('class');
             var desc = $(self).text();
-            $('#write-check-div').append($('<a style="margin-right: 13px">' + name + '</a>').attr({id: id, title: name, "data-content": desc, href: "/grammar/view/" + gid,
+            $('#write-check-div').append($('<a style="margin-right: 13px; margin-bottom: 10px;">' + name + '</a>').attr({id: id, title: name, "data-content": desc, href: "/grammar/view/" + gid,
             class: "help btn " + cls}));
             $('#' + id).popover();
         }

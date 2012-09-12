@@ -1,0 +1,9 @@
+<uwsgi id="enser">
+    <virtualenv>/home/ubuntu/VirtualEnvs/env1</virtualenv>
+    <http>:8000</http>
+    <pidfile>/tmp/enser.pid</pidfile>
+    <file>application.py</file>
+    <callable>app</callable>
+    <daemonize>/var/log/enser.log</daemonize>
+    <stats>/tmp/enser.stats</stats>
+</uwsgi>
